@@ -1,6 +1,6 @@
 ---
 name: python-ci-docker
-description: Use when adding continuous integration or containerization to a Python project managed with uv. Creates a GitHub Actions workflow that runs ty and pytest on push/PR, and a digest-pinned multi-stage Dockerfile based on the official uv Docker example.
+description: Use when adding continuous integration or containerization to a Python project managed with uv. Creates a GitHub Actions workflow that runs ty and pytest on push/PR, and a multi-stage Dockerfile based on the official uv Docker example.
 ---
 
 # CI and Docker for uv-managed Python projects
@@ -44,10 +44,9 @@ jobs:
         run: uv run pytest
 ```
 
-Pin third-party actions to a commit SHA with the version as a trailing
-comment (e.g. `actions/checkout@<sha> # v7`) — Renovate (configured by the
-`python-quality-tooling` skill) keeps these pins current. Don't pin to a
-mutable tag like `@v7` directly.
+Use plain version tags for `uses:` (e.g. `actions/checkout@v7`) — no need
+to hand-resolve commit SHAs. Renovate (configured by the
+`python-quality-tooling` skill) tracks and bumps these versions on its own.
 
 `uv python install` reads `.python-version`, so CI always matches the
 locally pinned interpreter. `uv sync --dev` installs the dev dependency
@@ -115,21 +114,20 @@ jobs:
           generate_release_notes: true
 ```
 
-As above, pin every `uses:` to a commit SHA with the version in a comment.
+As above, use plain version tags for `uses:` — Renovate keeps them current.
 
 ## 3. Dockerfile
 
 Based on the official
 [uv Docker example](https://github.com/astral-sh/uv-docker-example/blob/main/multistage.Dockerfile).
 Two stages: build the venv with `uv sync`, then copy only the venv (plus
-whatever runtime files the app needs) into a clean base image. Pin all
-base images by digest, not just tag.
+whatever runtime files the app needs) into a clean base image.
 
 ```dockerfile
 # From example at: https://github.com/astral-sh/uv-docker-example/blob/main/multistage.Dockerfile
 
 # Build app dependencies
-FROM python:3.12-slim-bookworm@sha256:<digest> AS builder
+FROM python:3.12-slim-bookworm AS builder
 WORKDIR /app
 
 RUN apt-get update \
@@ -139,7 +137,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
-COPY --from=ghcr.io/astral-sh/uv:<version>@sha256:<digest> /uv /bin/
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
@@ -157,7 +155,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 
 # Copy app to runtime stage
-FROM python:3.12-slim-bookworm@sha256:<digest>
+FROM python:3.12-slim-bookworm
 WORKDIR /app
 
 RUN apt-get update \
@@ -176,7 +174,7 @@ CMD ["<project-name>"]
 
 Adjust per project:
 - Add any extra `apt-get install` packages both stages need (e.g.
-  `libpq-dev` for `psycopg`) — keep build-only deps (`build-essential`,
+  `libpq-dev` for `psycopg2`) — keep build-only deps (`build-essential`,
   `git`) in the builder stage only.
 - Copy any extra runtime files the app needs (e.g. `alembic.ini` and a
   `migrations/` directory) from the builder stage alongside the venv.
@@ -184,11 +182,10 @@ Adjust per project:
   dependency-only sync step prevents `hatch-vcs` from failing before
   `.git` is available in that layer; it's safe because that step doesn't
   build the project itself (`--no-install-project`).
-- Always resolve and pin the current digest for the Python base image and
-  the `uv` image (`docker pull <image>:<tag>` then read the digest, or use
-  `docker buildx imagetools inspect`) rather than leaving `<digest>`
-  placeholders in committed Dockerfiles. Renovate keeps digest pins
-  current once they're in place.
+- Use plain tags for the base images (`python:3.12-slim-bookworm`,
+  `ghcr.io/astral-sh/uv:latest` or a specific version) — don't hand-resolve
+  digests. Renovate pins and updates image versions on its own once it's
+  configured for the project.
 - Add a `.dockerignore` with at least `**/__pycache__`.
 
 ## Verification checklist
@@ -196,5 +193,3 @@ Adjust per project:
 - [ ] `uv run ty check` and `uv run pytest` both pass locally before
       relying on the workflow
 - [ ] `docker build .` succeeds and the resulting image runs the app
-- [ ] All `uses:` entries in workflow YAML are pinned to a commit SHA
-- [ ] All base images in the Dockerfile are pinned by digest

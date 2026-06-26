@@ -16,16 +16,27 @@ personal, opinionated, [Astral](https://astral.sh)-centric toolchain.
   dependencies (and pre-commit hook pins) up to date automatically.
 - **CI/CD**: a GitHub Actions workflow installs `uv`, then runs `ty check`
   and `pytest` on every push/PR. Releases are tag-triggered and build a
-  multi-stage, digest-pinned Docker image.
+  multi-stage Docker image.
 
 ## Skills
 
 | Skill | Use when |
 |---|---|
-| [`uv-python-package`](./uv-python-package/SKILL.md) | Starting a brand-new Python project/package. |
-| [`python-quality-tooling`](./python-quality-tooling/SKILL.md) | Wiring up ruff, ty, pre-commit and Renovate. |
-| [`python-ci-docker`](./python-ci-docker/SKILL.md) | Adding GitHub Actions CI and a Dockerfile. |
-| [`python-library-choices`](./python-library-choices/SKILL.md) | Picking a library for a given use case (web, HTTP, CLI, DB, logging, etc.). |
+| [`uv-python-package`](./skills/uv-python-package/SKILL.md) | Starting a brand-new Python project/package. |
+| [`python-quality-tooling`](./skills/python-quality-tooling/SKILL.md) | Wiring up ruff, ty, pre-commit and Renovate. |
+| [`python-ci-docker`](./skills/python-ci-docker/SKILL.md) | Adding GitHub Actions CI and a Dockerfile. |
+| [`python-library-choices`](./skills/python-library-choices/SKILL.md) | Picking a library for a given use case (web, HTTP, CLI, DB, logging, etc.). |
 
 These skills are designed to be applied in order, but each is self-contained
 and can be invoked on its own against an existing project.
+
+## Installing as a plugin
+
+This repo is a Claude Code plugin. Install it with:
+
+```
+/plugin install github.com/ardubev16/python-skills
+```
+
+or, for local development, run Claude Code with `--plugin-dir <path-to-this-repo>`.
+Skills are then invoked as `/python-skills:<skill-name>`.

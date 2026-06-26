@@ -46,8 +46,9 @@ ignore = [
 
 Start from `select = ["ALL"]` always — the default is maximal strictness,
 with deviations as explicit, commented ignores rather than an opt-in subset
-of rules. Only add a new ignore when a rule is genuinely a false positive
-for this codebase's idioms, and comment *why*.
+of rules. The list above is a starting baseline, not a fixed set: extend it
+freely on a per-project basis as real friction shows up, commenting *why*
+each addition exists.
 
 Run `uv run ruff check --fix .` and `uv run ruff format .` locally; both
 also run via pre-commit and CI.

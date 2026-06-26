@@ -1,6 +1,6 @@
 ---
 name: python-ci-docker
-description: Use when adding continuous integration or containerization to a Python project managed with uv. Creates a GitHub Actions workflow that runs ty and pytest on push/PR, and a multi-stage Dockerfile based on the official uv Docker example.
+description: Use when adding continuous integration or containerization to a Python project managed with uv. Creates a GitHub Actions workflow that runs prek (ruff, ty, etc.) and pytest on push/PR, and a multi-stage Dockerfile based on the official uv Docker example.
 ---
 
 # CI and Docker for uv-managed Python projects
@@ -21,6 +21,15 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Run prek
+        uses: j178/prek-action@v2
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -36,10 +45,6 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
-      # TODO: Move to pre-commit once the official hook is released: https://github.com/astral-sh/ty/issues/269
-      - name: Run typechecker
-        run: uv run ty check
-
       - name: Run tests
         run: uv run pytest
 ```
@@ -48,9 +53,12 @@ Use plain version tags for `uses:` (e.g. `actions/checkout@v7`) — no need
 to hand-resolve commit SHAs. Renovate (configured by the
 `python-quality-tooling` skill) tracks and bumps these versions on its own.
 
-`uv python install` reads `.python-version`, so CI always matches the
-locally pinned interpreter. `uv sync --dev` installs the dev dependency
-group (pytest, ruff, ty) on top of the locked `uv.lock`.
+The `lint` job runs the full `.pre-commit-config.yaml` pipeline (ruff, ty,
+codespell, actionlint, gitleaks, etc. — see `python-quality-tooling`) via
+the official `j178/prek-action`, so ty checking happens there instead of as
+a separate step. `uv python install` reads `.python-version`, so CI always
+matches the locally pinned interpreter. `uv sync --dev` installs the dev
+dependency group (pytest, ruff, ty) on top of the locked `uv.lock`.
 
 ## 2. Release workflow — `.github/workflows/release.yaml` (optional)
 
@@ -190,6 +198,6 @@ Adjust per project:
 
 ## Verification checklist
 
-- [ ] `uv run ty check` and `uv run pytest` both pass locally before
+- [ ] `prek run --all-files` and `uv run pytest` both pass locally before
       relying on the workflow
 - [ ] `docker build .` succeeds and the resulting image runs the app

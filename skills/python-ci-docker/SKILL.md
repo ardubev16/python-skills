@@ -10,7 +10,7 @@ package, src layout, hatch-vcs versioning) and `python-quality-tooling`
 (ruff + ty configured).
 
 CI is wired up as thin callers of the reusable workflows in
-[`ardubev16/common`](https://github.com/ardubev16/common/tree/master/.github/workflows),
+[`ardubev16/common`](https://github.com/ardubev16/common/tree/main/.github/workflows),
 so each project just selects which shared jobs it needs instead of
 duplicating their steps.
 
@@ -27,10 +27,10 @@ on:
 
 jobs:
   lint:
-    uses: ardubev16/common/.github/workflows/prek.yaml@master
+    uses: ardubev16/common/.github/workflows/prek.yaml@main
 
   test:
-    uses: ardubev16/common/.github/workflows/python-test.yaml@master
+    uses: ardubev16/common/.github/workflows/python-test.yaml@main
 ```
 
 `prek.yaml` runs the full `.pre-commit-config.yaml` pipeline (ruff, ty,
@@ -60,7 +60,7 @@ permissions:
 
 jobs:
   build-and-push:
-    uses: ardubev16/common/.github/workflows/docker-build.yaml@master
+    uses: ardubev16/common/.github/workflows/docker-build.yaml@main
     with:
       tags: type=ref,event=tag
 
@@ -94,13 +94,13 @@ on:
 jobs:
   build:
     if: github.event.action != 'closed'
-    uses: ardubev16/common/.github/workflows/docker-build.yaml@master
+    uses: ardubev16/common/.github/workflows/docker-build.yaml@main
     with:
       tags: type=ref,event=pr
 
   clean:
     if: github.event.action == 'closed'
-    uses: ardubev16/common/.github/workflows/docker-clean-pr.yaml@master
+    uses: ardubev16/common/.github/workflows/docker-clean-pr.yaml@main
     with:
       pr-number: ${{ github.event.pull_request.number }}
 ```

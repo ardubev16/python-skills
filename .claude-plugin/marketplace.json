@@ -1,0 +1,14 @@
+{
+  "name": "python-skills",
+  "description": "Opinionated skills for scaffolding Python projects with an Astral-centric toolchain (uv, ruff, ty), pre-commit, Renovate, CI and Docker.",
+  "owner": {
+    "name": "ardubev16"
+  },
+  "plugins": [
+    {
+      "name": "python-skills",
+      "source": "./",
+      "description": "Opinionated skills for scaffolding Python projects with an Astral-centric toolchain (uv, ruff, ty), pre-commit, Renovate, CI and Docker."
+    }
+  ]
+}

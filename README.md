@@ -32,10 +32,12 @@ and can be invoked on its own against an existing project.
 
 ## Installing as a plugin
 
-This repo is a Claude Code plugin. Install it with:
+This repo doubles as a Claude Code plugin marketplace containing a single
+plugin. Add the marketplace, then install the plugin:
 
 ```
-/plugin install github.com/ardubev16/python-skills
+/plugin marketplace add ardubev16/python-skills
+/plugin install python-skills@python-skills
 ```
 
 or, for local development, run Claude Code with `--plugin-dir <path-to-this-repo>`.

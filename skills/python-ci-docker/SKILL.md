@@ -1,6 +1,6 @@
 ---
 name: python-ci-docker
-description: Use when adding continuous integration or containerization to a Python project managed with uv. Creates a GitHub Actions workflow that runs prek (ruff, ty, etc.) and pytest on push/PR, and a multi-stage Dockerfile based on the official uv Docker example.
+description: Use when adding continuous integration or containerization to a Python project managed with uv. Creates GitHub Actions workflows that call the shared reusable workflows in ardubev16/common to run prek (ruff, ty, etc.) and pytest on push/PR, and a multi-stage Dockerfile based on the official uv Docker example.
 ---
 
 # CI and Docker for uv-managed Python projects
@@ -8,6 +8,11 @@ description: Use when adding continuous integration or containerization to a Pyt
 Assumes the project already follows `uv-python-package` (installable
 package, src layout, hatch-vcs versioning) and `python-quality-tooling`
 (ruff + ty configured).
+
+CI is wired up as thin callers of the reusable workflows in
+[`ardubev16/common`](https://github.com/ardubev16/common/tree/master/.github/workflows),
+so each project just selects which shared jobs it needs instead of
+duplicating their steps.
 
 ## 1. Test workflow — `.github/workflows/test.yaml`
 
@@ -22,49 +27,23 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Run prek
-        uses: j178/prek-action@v2
+    uses: ardubev16/common/.github/workflows/prek.yaml@master
 
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8
-
-      - name: Set up Python
-        run: uv python install
-
-      - name: Install dependencies
-        run: uv sync --dev
-
-      - name: Run tests
-        run: uv run pytest
+    uses: ardubev16/common/.github/workflows/python-test.yaml@master
 ```
 
-Use plain version tags for `uses:` (e.g. `actions/checkout@v7`) — no need
-to hand-resolve commit SHAs. Renovate (configured by the
-`python-quality-tooling` skill) tracks and bumps these versions on its own.
-
-The `lint` job runs the full `.pre-commit-config.yaml` pipeline (ruff, ty,
-codespell, actionlint, gitleaks, etc. — see `python-quality-tooling`) via
-the official `j178/prek-action`, so ty checking happens there instead of as
-a separate step. `uv python install` reads `.python-version`, so CI always
-matches the locally pinned interpreter. `uv sync --dev` installs the dev
-dependency group (pytest, ruff, ty) on top of the locked `uv.lock`.
+`prek.yaml` runs the full `.pre-commit-config.yaml` pipeline (ruff, ty,
+codespell, actionlint, gitleaks, etc. — see `python-quality-tooling`).
+`python-test.yaml` installs uv, sets up the Python version pinned in
+`.python-version` (override via the `python-version` input), runs
+`uv sync --dev`, then `uv run pytest`.
 
 ## 2. Release workflow — `.github/workflows/release.yaml` (optional)
 
 Only add this if the project ships a container image. Trigger on
-version tags, build and push to GHCR, then cut a GitHub release with
-auto-generated notes:
+version tags, build and push to GHCR via `docker-build.yaml`, then cut a
+GitHub release with auto-generated notes:
 
 ```yaml
 name: Release
@@ -81,35 +60,9 @@ permissions:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker image metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: type=ref,event=tag
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          labels: ${{ steps.meta.outputs.labels }}
-          tags: ${{ steps.meta.outputs.tags }}
+    uses: ardubev16/common/.github/workflows/docker-build.yaml@master
+    with:
+      tags: type=ref,event=tag
 
   release:
     runs-on: ubuntu-latest
@@ -122,7 +75,35 @@ jobs:
           generate_release_notes: true
 ```
 
-As above, use plain version tags for `uses:` — Renovate keeps them current.
+`docker-build.yaml` defaults `image-name` to the repository name and
+`dockerfile`/`context` to `Dockerfile`/`.` — only pass `with:` overrides
+when a project's layout differs.
+
+### Optional: build + clean up PR images
+
+To also publish a `pr-<number>` tagged image on pull requests and remove
+it once the PR closes, add:
+
+```yaml
+name: PR Image
+
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
+
+jobs:
+  build:
+    if: github.event.action != 'closed'
+    uses: ardubev16/common/.github/workflows/docker-build.yaml@master
+    with:
+      tags: type=ref,event=pr
+
+  clean:
+    if: github.event.action == 'closed'
+    uses: ardubev16/common/.github/workflows/docker-clean-pr.yaml@master
+    with:
+      pr-number: ${{ github.event.pull_request.number }}
+```
 
 ## 3. Dockerfile
 
